@@ -27,7 +27,7 @@ public partial class ServerPage : ContentPage, IPageCleanup
         Logger.Log("Server mode selected", 0);
         Preferences.Set("AppMode", "server");
         btStartStop.Text = startText;
-        int value = Preferences.Get("ServerPort", -1);
+        int value = Preferences.Get("ClientPort", -1);
         if (value == -1)
         {
             entPort.Text = "";
@@ -139,7 +139,7 @@ public partial class ServerPage : ContentPage, IPageCleanup
 
         while (!stopPageRequest)
         {
-            var (signalStrenght, ip) = WiFiSignal();
+            var (signalStrenght, ip) = WiFiData();
             if (signalStrenght > 0)
             {
                 lblSignal.Text = "Signal strenght: " + signalStrenght.ToString() + "%";
@@ -154,7 +154,7 @@ public partial class ServerPage : ContentPage, IPageCleanup
         }
     }
 
-    private (int signal, string ipAddress) WiFiSignal()
+    private (int signal, string ipAddress) WiFiData()
     {
 #if ANDROID
         try

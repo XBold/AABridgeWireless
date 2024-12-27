@@ -1,33 +1,212 @@
+using Android.Content;
+using Android.Net.Wifi;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
+
+using System.Threading;
+using Tools.Classes;
 
 namespace AABridgeWireless;
 
 public partial class ClientPage : ContentPage
 {
+    private bool stopPageRequest;
+    private bool connectionRunning;
+    private readonly string connectText = "Connect to server";
+    private readonly string disconnectText = "Disconnect from server";
+    private CancellationTokenSource _cancellationTokenSource;
+
     public ClientPage()
     {
         InitializeComponent();
         Console.WriteLine("Selezionata modalità client");
         Preferences.Set("AppMode", "client");
-        _ = ConnectToServer("192.168.50.1", 5555);
     }
 
-    public async Task ConnectToServer(string ip, int port)
+    public async Task CleanupAsync()
+    {
+        Logger.Log($"Closing {this.GetType().Name}", 0);
+        await StopPage();
+    }
+
+    private async Task StopPage()
+    {
+        stopPageRequest = true;
+        await StopConnection();
+    }
+
+    private void InitializePage()
+    {
+        stopPageRequest = false;
+        Logger.Log("Client mode selected", 0);
+        Preferences.Set("AppMode", "client");
+        btCnct.Text = connectText;
+        int ip = Preferences.Get("ServerIp", -1);
+        int port = Preferences.Get("ServerPort", -1);
+        if (ip == -1)
+        {
+            entIpDst.Text = "";
+        }
+        else
+        {
+            entIpDst.Text = ip.ToString();
+        }
+        if (port == -1)
+        {
+            entPort.Text = "";
+        }
+        else
+        {
+            entPort.Text = port.ToString();
+        }
+    }
+
+    private void PageAppearing(object sender, EventArgs e)
+    {
+        InitializePage();
+        _ = UpdateWifiData();
+    }
+
+    private async Task UpdateWifiData()
+    {
+        while (!stopPageRequest)
+        {
+            var (signalStrenght, ip) = WiFiData();
+            if (signalStrenght > 0)
+            {
+                lblInfo.Text = "Signal strenght: " + signalStrenght.ToString() + "%";
+                lblInfo.Text += "\n";
+                lblInfo.Text += $"Ip address: {ip}";
+            }
+            else
+            {
+                lblInfo.Text = "WiFi not connected";
+            }
+            await Task.Delay(100);
+        }
+    }
+
+    private (int signal, string ipAddress) WiFiData()
+    {
+#if ANDROID
+        try
+        {
+
+            var wifiManager = (WifiManager)Android.App.Application.Context.GetSystemService(Context.WifiService);
+            var info = wifiManager.ConnectionInfo;
+            int ipAddressRaw = info.IpAddress;
+            string ip = "";
+            try
+            {
+                ip = string.Format(
+                    "{0}.{1}.{2}.{3}",
+                    (ipAddressRaw & 0xff),
+                    (ipAddressRaw >> 8 & 0xff),
+                    (ipAddressRaw >> 16 & 0xff),
+                    (ipAddressRaw >> 24 & 0xff));
+            }
+            catch (Exception ex)
+            {
+                Logger.Log("Error while formatting the IP address", 2);
+                ip = string.Empty;
+            }
+
+            return (WifiManager.CalculateSignalLevel(info.Rssi, 101), ip);
+        }
+        catch (Exception ex)
+        {
+            Logger.Log($"Error while getting signal strength. Error: {ex.Message}", 2);
+            return (0, "");
+        }
+#else
+        return (0, "");
+#endif
+    }
+
+    private async Task ConnectToServer(string ip, int port, CancellationToken token)
     {
         TcpClient client = new TcpClient();
-        await client.ConnectAsync(ip, port);
-        Console.WriteLine("Connesso al server.");
+        ToogleUiElements(false);
+        connectionRunning = true;
+        try
+        {
+            while (!token.IsCancellationRequested)
+            {
+                Logger.Log("Waiting connection...", 0);
 
-        var stream = client.GetStream();
-        byte[] buffer = Encoding.UTF8.GetBytes("Messaggio dal client.");
-        await stream.WriteAsync(buffer, 0, buffer.Length);
+                Preferences.Set("ServerIp", ip);
+                Preferences.Set("ServerPort", port);
+                var acceptTask = client.ConnectAsync(ip, port);
+                var completedTask = await Task.WhenAny(acceptTask, Task.Delay(Timeout.Infinite, token));
 
-        // Legge i dati dal server
-        buffer = new byte[1024];
-        int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
-        string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-        Console.WriteLine($"Ricevuto dal server: {message}");
+                if (completedTask == acceptTask)
+                {
+                    var rx = acceptTask.Result;
+                    Logger.Log("Connected!", 0);
+
+                    _ = HandleConnectionAsync(client, token);
+                }
+                else
+                {
+                    Logger.Log("Token for closing server received", 0);
+                    ToogleUiElements(true);
+                    break;
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            Logger.Log("Requested stop of server by token", 0);
+        }
+        catch (Exception ex)
+        {
+            Logger.Log($"Server error: {ex.Message}", 2);
+        }
+        finally
+        {
+            client.Close();
+            ToogleUiElements(true);
+            connectionRunning = false;
+            Logger.Log("Server succesfully stopped", 0);
+        }
+    }
+
+    private async Task HandleConnectionAsync(TcpClient client, CancellationToken token)
+    {
+        try
+        {
+            using var stream = client.GetStream();
+            byte[] buffer = Encoding.UTF8.GetBytes("Client connected");
+            await stream.WriteAsync(buffer, 0, buffer.Length, token);
+            Logger.Log("Welcome message sent to client", 0);
+
+            buffer = new byte[1024];
+            int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, token);
+            string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+            Logger.Log($"Message received: {message}", 0);
+        }
+        catch (OperationCanceledException)
+        {
+            Logger.Log("Server stop requested", 0);
+        }
+        catch (Exception ex)
+        {
+            Logger.Log($"Error receiving message: {ex.Message}", 2);
+        }
+        finally
+        {
+            client.Close();
+            Logger.Log("Server closed", 0);
+        }
+    }
+
+    private void ToogleUiElements(bool enable)
+    {
+        entIpDst.IsEnabled = enable;
+        entPort.IsEnabled = enable;
+        entTxMsg.IsEnabled = !enable;
+        btCnct.Text = (enable ? connectText : disconnectText);
     }
 
     private void ManageWiFi()
@@ -38,5 +217,63 @@ public partial class ClientPage : ContentPage
     private void HandleUSBCommunication()
     {
         // USB communication logic
+    }
+
+    private void ConnectOrDisconnect(object sender, EventArgs e)
+    {
+        if(sender is Button btConnection)
+        {
+            if (btConnection.Text == connectText)
+            {
+                if (!string.IsNullOrEmpty(entIpDst.Text) && !string.IsNullOrEmpty(entPort.Text))
+                {
+                    if (int.TryParse(entPort.Text, out var port))
+                    {
+                        if (port > 1020 && port <= 65535)
+                        {
+                            string ip = entIpDst.Text;
+                            btConnection.Text = disconnectText;
+                            _cancellationTokenSource = new CancellationTokenSource();
+                            _ = ConnectToServer(ip, port, _cancellationTokenSource.Token);
+                        }
+                        else
+                        {
+                            entPort.BackgroundColor = Colors.Red;
+                        }
+                    }
+                    else
+                    {
+                        Logger.Log("Not possible to parse the input in INT format", 2);
+                    }
+                }
+            }
+            else
+            {
+                _ = StopConnection();
+            }
+        }
+    }
+
+    private async Task StopConnection()
+    {
+        DateTime timeRequestStop = DateTime.Now;
+        TimeSpan breakDuration = TimeSpan.FromSeconds(2);
+        if (_cancellationTokenSource != null)
+        {
+            _cancellationTokenSource.Cancel();
+            _cancellationTokenSource.Dispose();
+            _cancellationTokenSource = null;
+            Logger.Log("Request stop server", 0);
+        }
+
+        while (connectionRunning)
+        {
+            await Task.Delay(50);
+            if (DateTime.Now - timeRequestStop > breakDuration)
+            {
+                Logger.Log("Forced stop when server is still running", 2);
+                break;
+            }
+        }
     }
 }
