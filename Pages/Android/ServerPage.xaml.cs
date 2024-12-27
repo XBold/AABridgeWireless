@@ -14,10 +14,12 @@ public partial class ServerPage : ContentPage, IPageCleanup
     private CancellationTokenSource _cancellationTokenSource;
     private readonly string startText = "Start server";
     private readonly string stopText = "Stop server";
+    private bool stopPageRequest;
 
     public ServerPage()
     {
         InitializeComponent();
+        stopPageRequest = false;
         Logger.Log("Server mode selected", 0);
         Preferences.Set("AppMode", "server");
         btStartStop.Text = startText;
@@ -26,10 +28,18 @@ public partial class ServerPage : ContentPage, IPageCleanup
 
     public async Task CleanupAsync()
     {
-        if (serverRunning)
+        await StopPage();
+
+        MainThread.BeginInvokeOnMainThread(() =>
         {
-            await StopServer();
-        }
+            Shell.Current.Navigation.PopAsync(false);
+        });
+    }
+
+    private async Task StopPage()
+    {
+        stopPageRequest = true;
+        await StopServer();
     }
 
     private async Task StartServer(int port, CancellationToken token)
@@ -112,11 +122,13 @@ public partial class ServerPage : ContentPage, IPageCleanup
 
     private async Task CheckWiFiSignal()
     {
-        while (true)
+        
+        while (!stopPageRequest)
         {
             lblShowSignal.Text = "Signal strenght: " + WiFiSignal().ToString() + "%";
             await Task.Delay(100);
         }
+        lblShowSignal.Text = "Stop page requested!!";
     }
 
     private int WiFiSignal()

@@ -2,9 +2,12 @@
 {
     public partial class AppShell : Shell
     {
+        private bool cleanupInProgress = false;
+
         public AppShell(string pageSelection)
         {
             InitializeComponent();
+
             if (!string.IsNullOrEmpty(pageSelection))
             {
                 GoToAsync("//" + pageSelection);
@@ -13,21 +16,41 @@
 
         protected override void OnNavigating(ShellNavigatingEventArgs args)
         {
-            base.OnNavigating(args);
+            if (cleanupInProgress)
+                return;
 
-            // Controlla se la pagina corrente implementa l'interfaccia IPageCleanup
             if (CurrentPage is IPageCleanup cleanupPage)
             {
-                args.Cancel(); // Blocca temporaneamente la navigazione
+                cleanupInProgress = true;
+
+                // Blocca temporaneamente la navigazione
+                args.Cancel();
+
+                // Esegui la pulizia
                 Task.Run(async () =>
                 {
-                    await cleanupPage.CleanupAsync(); // Esegui la pulizia
+                    await cleanupPage.CleanupAsync();
+
+                    // Riprendi la navigazione
                     MainThread.BeginInvokeOnMainThread(async () =>
                     {
-                        await Shell.Current.GoToAsync(args.Target.Location); // Continua la navigazione
+                        cleanupInProgress = false;
+                        //await Current.GoToAsync(args.Target.Location);
+                        await ((AppShell)Current).NavigateToPage(args.Target.Location.OriginalString);
                     });
                 });
             }
         }
+
+        public async Task NavigateToPage(string targetRoute)
+        {
+            var currentRoute = Current.CurrentState.Location.OriginalString;
+
+            if (currentRoute != targetRoute)
+            {
+                await Current.GoToAsync(targetRoute);
+            }
+        }
     }
+
 }
