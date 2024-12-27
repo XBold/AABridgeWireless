@@ -1,15 +1,30 @@
-﻿namespace AABridgeWireless
+﻿namespace AABridgeWireless;
+
+public partial class App : Application
 {
-    public partial class App : Application
+    public App()
     {
-        public App()
+        InitializeComponent();
+    }
+
+    protected override Window CreateWindow(IActivationState? activationState)
+    {
+        var mode = Preferences.Get("AppMode", "None");
+        Page startPage;
+
+        if (mode == "server")
         {
-            InitializeComponent();
+            startPage = new AppShell("server");
+        }
+        else if (mode == "client")
+        {
+            startPage = new AppShell("client");
+        }
+        else
+        {
+            startPage = new ModeSelectionPage();
         }
 
-        protected override Window CreateWindow(IActivationState? activationState)
-        {
-            return new Window(new AppShell());
-        }
+        return new Window(startPage);
     }
 }

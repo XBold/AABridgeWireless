@@ -8,8 +8,13 @@
     Title="AABridgeWireless">
 
     <ShellContent
-        Title="Home"
-        ContentTemplate="{DataTemplate local:MainPage}"
-        Route="MainPage" />
+        Title="Client"
+        ContentTemplate="{DataTemplate local:ClientPage}"
+        Route="client" />
+
+    <ShellContent
+        Title="Server"
+        ContentTemplate="{DataTemplate local:ServerPage}"
+        Route="server" />
 
 </Shell>

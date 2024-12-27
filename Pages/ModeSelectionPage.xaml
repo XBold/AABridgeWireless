@@ -1,0 +1,25 @@
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AABridgeWireless.ModeSelectionPage">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="5*"/>
+            <RowDefinition Height="1*"/>
+            <!--SPACE-->
+            <RowDefinition Height="1*"/>
+            <RowDefinition Height="2*"/>
+            <!--SPACE-->
+            <RowDefinition Height="1*"/>
+            <RowDefinition Height="2*"/>
+            <RowDefinition Height="5*"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition/>
+            <ColumnDefinition Width="5*"/>
+            <ColumnDefinition/>
+        </Grid.ColumnDefinitions>
+        <Label Grid.Row="1" Grid.Column="1" Text="Select Mode" FontSize="24" HorizontalTextAlignment="Center" VerticalTextAlignment="Center"/>
+        <Button Grid.Row="3" Grid.Column="1" Text="Server" Clicked="OnModeSelected"/>
+        <Button Grid.Row="5" Grid.Column="1" Text="Client" Clicked="OnModeSelected"/>
+    </Grid>
+</ContentPage>
