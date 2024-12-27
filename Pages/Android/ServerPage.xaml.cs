@@ -9,11 +9,11 @@ namespace AABridgeWireless;
 
 public partial class ServerPage : ContentPage, IPageCleanup
 {
-    public bool serverRunning { get; private set; }
     
     private CancellationTokenSource _cancellationTokenSource;
     private readonly string startText = "Start server";
     private readonly string stopText = "Stop server";
+    private bool serverRunning;
     private bool stopPageRequest;
 
     public ServerPage()
@@ -187,7 +187,7 @@ public partial class ServerPage : ContentPage, IPageCleanup
             return (0, "");
         }
 #else
-        return 0;
+        return (0, "");
 #endif
     }
 
