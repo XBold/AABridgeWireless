@@ -1,3 +1,5 @@
+using Tools.Classes;
+
 namespace AABridgeWireless;
 
 public partial class ModeSelectionPage : ContentPage
@@ -16,18 +18,18 @@ public partial class ModeSelectionPage : ContentPage
 
             if (Application.Current?.Windows.Count > 0)
             {
-                if (mode == "server")
+                if (mode == "Server")
                 {
                     Application.Current.Windows[0].Page = new AppShell(mode);
                 }
-                else if (mode == "client")
+                else if (mode == "Client")
                 {
                     Application.Current.Windows[0].Page = new AppShell(mode);
                 }
             }
             else
             {
-                Console.WriteLine("Errore: nessuna finestra attiva trovata.");
+                Logger.Log("No mode selected, check the code!", 3);
             }
         }
     }

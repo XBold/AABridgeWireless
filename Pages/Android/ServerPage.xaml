@@ -11,16 +11,16 @@
             <RowDefinition Height="2*"/> <!--Entry-->
             <!--SPACE-->
             <RowDefinition Height="1*"/>
-            <RowDefinition Height="2*"/> <!--Label signal-->
+            <RowDefinition Height="2*"/> <!--Button start server-->
             <!--SPACE-->
             <RowDefinition Height="1*"/>
-            <RowDefinition Height="2*"/> <!--Button start server-->
+            <RowDefinition Height="2*"/> <!--Label signal strenght-->
             <!--SPACE-->
             <RowDefinition Height="1*"/>
             <RowDefinition Height="2*"/> <!--Label output-->
             <!--SPACE-->
             <RowDefinition Height="1*"/>
-            <RowDefinition Height="2*"/> <!-- Label current IP-->
+            <RowDefinition Height="2*"/> <!--Label current IP-->
             <RowDefinition Height="5*"/>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
@@ -31,8 +31,8 @@
         <Label Grid.Row="1" Grid.Column="1" Text="Server mode" FontSize="24" HorizontalTextAlignment="Center" VerticalTextAlignment="Center"/>
         <Entry x:Name="entPort" Grid.Row="3" Grid.Column="1" VerticalOptions="Center" Keyboard="Numeric" MaxLength="5" TextChanged="RestoreBackgroundColor" Focused="RestoreBackgroundColor"/>
         <Button x:Name="btStartStop" Grid.Row="5" Grid.Column="1" Text="Start server" Clicked="StartStopServer"/>
-        <Label x:Name="lblShowSignal" Grid.Row="7" Grid.Column="1" VerticalOptions="Center" HorizontalOptions="CenterAndExpand"/>
-        <Label x:Name="lblOutput" Grid.Row="9" Grid.Column="1" MaxLines="10" FontSize="Large" Text="output"/>
+        <Label x:Name="lblOutput" Grid.Row="7" Grid.Column="1" FontSize="Large" Text="output"/>
+        <Label x:Name="lblSignal" Grid.Row="9" Grid.Column="1" FontSize="Large" VerticalOptions="Center" HorizontalOptions="CenterAndExpand"/>
         <Label x:Name="lblCurIp" Grid.Row="11" Grid.Column="1" FontSize="Large" VerticalOptions="Center" HorizontalOptions="CenterAndExpand"/>
     </Grid>
 </ContentPage>

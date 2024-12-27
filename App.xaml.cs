@@ -1,4 +1,6 @@
-﻿namespace AABridgeWireless;
+﻿using Tools.Classes;
+
+namespace AABridgeWireless;
 
 public partial class App : Application
 {
@@ -9,7 +11,17 @@ public partial class App : Application
 
     protected override Window CreateWindow(IActivationState? activationState)
     {
-        var mode = Preferences.Get("AppMode", "None");
+        string mode = string.Empty;
+
+        try
+        {
+           mode = Preferences.Get("AppMode", "None");
+        }
+        catch(Exception ex)
+        {
+            Logger.Log("Error when loading startup page", 2);
+            mode = string.Empty;
+        }
         Page startPage;
 
         if (mode == "server")

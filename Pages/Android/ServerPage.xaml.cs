@@ -142,12 +142,12 @@ public partial class ServerPage : ContentPage, IPageCleanup
             var (signalStrenght, ip) = WiFiSignal();
             if (signalStrenght > 0)
             {
-                lblShowSignal.Text = "Signal strenght: " + signalStrenght.ToString() + "%";
+                lblSignal.Text = "Signal strenght: " + signalStrenght.ToString() + "%";
                 lblCurIp.Text = $"Ip address: {ip}";
             }
             else
             {
-                lblShowSignal.Text = "WiFi not connected";
+                lblSignal.Text = "WiFi not connected";
                 lblCurIp.Text = "WiFi not connected";
             }
             await Task.Delay(100);
@@ -162,11 +162,23 @@ public partial class ServerPage : ContentPage, IPageCleanup
             
             var wifiManager = (WifiManager)Android.App.Application.Context.GetSystemService(Context.WifiService);
             var info = wifiManager.ConnectionInfo;
+            int ipAddressRaw = info.IpAddress;
             string ip = "";
-            if (IPAddress.TryParse(info.IpAddress.ToString(), out IPAddress address))
+            try
             {
-                ip = address.ToString();
+                ip = string.Format(
+                    "{0}.{1}.{2}.{3}",
+                    (ipAddressRaw & 0xff),
+                    (ipAddressRaw >> 8 & 0xff),
+                    (ipAddressRaw >> 16 & 0xff),
+                    (ipAddressRaw >> 24 & 0xff));
             }
+            catch (Exception ex)
+            {
+                Logger.Log("Error while formatting the IP address", 2);
+                ip = string.Empty;
+            }
+            
             return (WifiManager.CalculateSignalLevel(info.Rssi, 101),  ip);
         }
         catch (Exception ex)
