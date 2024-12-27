@@ -7,8 +7,10 @@ using Tools.Classes;
 
 namespace AABridgeWireless;
 
-public partial class ServerPage : ContentPage
+public partial class ServerPage : ContentPage, IPageCleanup
 {
+    public bool serverRunning { get; private set; }
+    
     private CancellationTokenSource _cancellationTokenSource;
     private readonly string startText = "Start server";
     private readonly string stopText = "Stop server";
@@ -22,12 +24,21 @@ public partial class ServerPage : ContentPage
         _ = CheckWiFiSignal();
     }
 
+    public async Task CleanupAsync()
+    {
+        if (serverRunning)
+        {
+            await StopServer();
+        }
+    }
+
     private async Task StartServer(int port, CancellationToken token)
     {
         TcpListener server = new TcpListener(IPAddress.Any, port);
         server.Start();
         Logger.Log("Server started", 0);
         ToogleUiElements(false);
+        serverRunning = true;
 
         try
         {
@@ -59,12 +70,13 @@ public partial class ServerPage : ContentPage
         }
         catch (Exception ex)
         {
-            Logger.Log($"Server error: {ex.Message}", 3);
+            Logger.Log($"Server error: {ex.Message}", 2);
         }
         finally
         {
             server.Stop();
             ToogleUiElements(true);
+            serverRunning = false;
             Logger.Log("Server succesfully stopped", 0);
         }
     }
@@ -89,7 +101,7 @@ public partial class ServerPage : ContentPage
         }
         catch (Exception ex)
         {
-            Logger.Log($"Error receiving message: {ex.Message}", 3);
+            Logger.Log($"Error receiving message: {ex.Message}", 2);
         }
         finally
         {
@@ -153,18 +165,30 @@ public partial class ServerPage : ContentPage
         }
         else
         {
-            StopServer();
+            _ = StopServer();
         }
     }
 
-    private void StopServer()
+    private async Task StopServer()
     {
+        DateTime timeRequestStop = DateTime.Now;
+        TimeSpan breakDuration = TimeSpan.FromSeconds(2);
         if (_cancellationTokenSource != null)
         {
             _cancellationTokenSource.Cancel();
             _cancellationTokenSource.Dispose();
             _cancellationTokenSource = null;
             Logger.Log("Request stop server", 0);
+        }
+
+        while (serverRunning)
+        {
+            await Task.Delay(50);
+            if (DateTime.Now - timeRequestStop > breakDuration)
+            {
+                Logger.Log("Forced stop when server is still running", 2);
+                break;
+            }
         }
     }
 
