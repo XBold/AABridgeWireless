@@ -16,7 +16,7 @@ public partial class ServerPage : ContentPage
     public ServerPage()
     {
         InitializeComponent();
-        Logger.Log("Selezionata modalità server", 0);
+        Logger.Log("Server mode selected", 0);
         Preferences.Set("AppMode", "server");
         btStartStop.Text = startText;
         _ = CheckWiFiSignal();
@@ -26,31 +26,28 @@ public partial class ServerPage : ContentPage
     {
         TcpListener server = new TcpListener(IPAddress.Any, port);
         server.Start();
-        Logger.Log("Server avviato", 0);
+        Logger.Log("Server started", 0);
         ToogleUiElements(false);
 
         try
         {
             while (!token.IsCancellationRequested)
             {
-                Logger.Log("In attesa di una connessione...", 0);
+                Logger.Log("Waiting connection...", 0);
 
-                // Attendi una connessione o il token di cancellazione
                 var acceptTask = server.AcceptTcpClientAsync();
                 var completedTask = await Task.WhenAny(acceptTask, Task.Delay(Timeout.Infinite, token));
 
-                // Se il token è stato segnalato, esci dal ciclo
                 if (completedTask == acceptTask)
                 {
                     var client = acceptTask.Result;
-                    Logger.Log("Connessione accettata", 0);
+                    Logger.Log("Connection accepted", 0);
 
-                    // Gestisci il client in un'altra funzione
                     _ = HandleClientAsync(client, token);
                 }
                 else
                 {
-                    Logger.Log("Token di cancellazione ricevuto", 0);
+                    Logger.Log("Token for closing server received", 0);
                     ToogleUiElements(true);
                     break;
                 }
@@ -58,17 +55,17 @@ public partial class ServerPage : ContentPage
         }
         catch (OperationCanceledException)
         {
-            Logger.Log("Server interrotto dal token di cancellazione", 0);
+            Logger.Log("Requested stop of server by token", 0);
         }
         catch (Exception ex)
         {
-            Logger.Log($"Errore nel server: {ex.Message}", 3);
+            Logger.Log($"Server error: {ex.Message}", 3);
         }
         finally
         {
             server.Stop();
             ToogleUiElements(true);
-            Logger.Log("Server arrestato", 0);
+            Logger.Log("Server succesfully stopped", 0);
         }
     }
 
@@ -77,28 +74,27 @@ public partial class ServerPage : ContentPage
         try
         {
             using var stream = client.GetStream();
-            byte[] buffer = Encoding.UTF8.GetBytes("Connesso al server.");
+            byte[] buffer = Encoding.UTF8.GetBytes("Client connected");
             await stream.WriteAsync(buffer, 0, buffer.Length, token);
-            Logger.Log("Messaggio inviato al client", 0);
+            Logger.Log("Welcome message sent to client", 0);
 
-            // Leggi i dati dal client
             buffer = new byte[1024];
             int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, token);
             string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-            Logger.Log($"Ricevuto: {message}", 0);
+            Logger.Log($"Message received: {message}", 0);
         }
         catch (OperationCanceledException)
         {
-            Logger.Log("Operazione annullata", 0);
+            Logger.Log("Server stop requested", 0);
         }
         catch (Exception ex)
         {
-            Logger.Log($"Errore nel client: {ex.Message}", 3);
+            Logger.Log($"Error receiving message: {ex.Message}", 3);
         }
         finally
         {
             client.Close();
-            Logger.Log("Connessione chiusa", 0);
+            Logger.Log("Server closed", 0);
         }
     }
 
@@ -106,16 +102,28 @@ public partial class ServerPage : ContentPage
     {
         while (true)
         {
-            lblShowSignal.Text = WiFiSignal().ToString();
-            await Task.Delay(1000);
+            lblShowSignal.Text = "Signal strenght: " + WiFiSignal().ToString() + "%";
+            await Task.Delay(100);
         }
     }
 
     private int WiFiSignal()
     {
-        var wifiManager = (WifiManager)Android.App.Application.Context.GetSystemService(Context.WifiService);
-        var info = wifiManager.ConnectionInfo;
-        return WifiManager.CalculateSignalLevel(info.Rssi, 101);
+#if ANDROID
+        try
+        {
+            var wifiManager = (WifiManager)Android.App.Application.Context.GetSystemService(Context.WifiService);
+            var info = wifiManager.ConnectionInfo;
+            return WifiManager.CalculateSignalLevel(info.Rssi, 101);
+        }
+        catch (Exception ex)
+        {
+            Logger.Log($"Error while getting signal strength. Error: {ex.Message}", 2);
+            return 0;
+        }
+#else
+        return 0;
+#endif
     }
 
     private void StartStopServer(object sender, EventArgs e)
@@ -156,7 +164,7 @@ public partial class ServerPage : ContentPage
             _cancellationTokenSource.Cancel();
             _cancellationTokenSource.Dispose();
             _cancellationTokenSource = null;
-            Logger.Log("Richiesta di arresto del server inviata", 0);
+            Logger.Log("Request stop server", 0);
         }
     }
 
