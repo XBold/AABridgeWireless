@@ -42,6 +42,7 @@ public partial class ClientPage : ContentPage
         Logger.Log("Client mode selected", 0);
         Preferences.Set("AppMode", "client");
         btCnct.Text = connectText;
+        lblRxMsg.Text = string.Empty;
         int ip = Preferences.Get("ServerIp", -1);
         int port = Preferences.Get("ServerPort", -1);
         if (ip == -1)
@@ -137,17 +138,16 @@ public partial class ClientPage : ContentPage
 
                 Preferences.Set("ServerIp", ip);
                 Preferences.Set("ServerPort", port);
-                var acceptTask = client.ConnectAsync(ip, port);
-                var completedTask = await Task.WhenAny(acceptTask, Task.Delay(Timeout.Infinite, token));
+                var completedTask = await Task.WhenAny(client.ConnectAsync(ip, port), Task.Delay(Timeout.Infinite, token));
+                Logger.Log("Server connected", 0);
 
-                if (completedTask == acceptTask)
+                if (completedTask.IsCompleted)
                 {
-                    var rx = acceptTask.Result;
                     Logger.Log("Connected!", 0);
 
                     _ = HandleConnectionAsync(client, token);
                 }
-                else
+                else if (completedTask.IsCanceled)
                 {
                     Logger.Log("Token for closing server received", 0);
                     ToogleUiElements(true);
@@ -177,13 +177,14 @@ public partial class ClientPage : ContentPage
         try
         {
             using var stream = client.GetStream();
-            byte[] buffer = Encoding.UTF8.GetBytes("Client connected");
+            byte[] buffer = Encoding.UTF8.GetBytes("Client connected to server");
             await stream.WriteAsync(buffer, 0, buffer.Length, token);
             Logger.Log("Welcome message sent to client", 0);
 
             buffer = new byte[1024];
             int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, token);
             string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+            lblRxMsg.Text += message;
             Logger.Log($"Message received: {message}", 0);
         }
         catch (OperationCanceledException)

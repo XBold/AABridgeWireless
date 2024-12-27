@@ -27,6 +27,7 @@ public partial class ServerPage : ContentPage, IPageCleanup
         Logger.Log("Server mode selected", 0);
         Preferences.Set("AppMode", "server");
         btStartStop.Text = startText;
+        lblOutput.Text = string.Empty;
         int value = Preferences.Get("ClientPort", -1);
         if (value == -1)
         {
@@ -41,7 +42,7 @@ public partial class ServerPage : ContentPage, IPageCleanup
     private void PageAppearing(object sender, EventArgs e)
     {
         InitializePage();
-        _ = CheckWiFiSignal();
+        _ = UpdateWifiData();
     }
 
     public async Task CleanupAsync()
@@ -117,6 +118,7 @@ public partial class ServerPage : ContentPage, IPageCleanup
             buffer = new byte[1024];
             int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, token);
             string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+            lblOutput.Text += message + "\n";
             Logger.Log($"Message received: {message}", 0);
         }
         catch (OperationCanceledException)
@@ -134,7 +136,7 @@ public partial class ServerPage : ContentPage, IPageCleanup
         }
     }
 
-    private async Task CheckWiFiSignal()
+    private async Task UpdateWifiData()
     {
 
         while (!stopPageRequest)
@@ -142,13 +144,13 @@ public partial class ServerPage : ContentPage, IPageCleanup
             var (signalStrenght, ip) = WiFiData();
             if (signalStrenght > 0)
             {
-                lblSignal.Text = "Signal strenght: " + signalStrenght.ToString() + "%";
-                lblCurIp.Text = $"Ip address: {ip}";
+                lblInfo.Text = "Signal strenght: " + signalStrenght.ToString() + "%";
+                lblInfo.Text += "\n";
+                lblInfo.Text += $"Ip address: {ip}";
             }
             else
             {
-                lblSignal.Text = "WiFi not connected";
-                lblCurIp.Text = "WiFi not connected";
+                lblInfo.Text = "WiFi not connected";
             }
             await Task.Delay(100);
         }
