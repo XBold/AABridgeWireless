@@ -1,4 +1,6 @@
-﻿namespace AABridgeWireless
+﻿using Android.Graphics.Pdf.Models.Selection;
+
+namespace AABridgeWireless
 {
     public partial class AppShell : Shell
     {
@@ -7,10 +9,12 @@
         public AppShell(string pageSelection)
         {
             InitializeComponent();
+            Routing.RegisterRoute(nameof(ServerPage), typeof(ServerPage));
+            Routing.RegisterRoute(nameof(ClientPage), typeof(ClientPage));
 
             if (!string.IsNullOrEmpty(pageSelection))
             {
-                GoToAsync("//" + pageSelection);
+                GoToAsync(pageSelection);
             }
         }
 
@@ -22,33 +26,22 @@
             if (CurrentPage is IPageCleanup cleanupPage)
             {
                 cleanupInProgress = true;
+                args.Cancel(); // Annulla la navigazione in corso
 
-                // Blocca temporaneamente la navigazione
-                args.Cancel();
-
-                // Esegui la pulizia
                 Task.Run(async () =>
                 {
-                    await cleanupPage.CleanupAsync();
+                    await cleanupPage.CleanupAsync(); // Esegui la pulizia
 
-                    // Riprendi la navigazione
                     MainThread.BeginInvokeOnMainThread(async () =>
                     {
+                        await Current.GoToAsync(args.Target.Location);
                         cleanupInProgress = false;
-                        //await Current.GoToAsync(args.Target.Location);
-                        await ((AppShell)Current).NavigateToPage(args.Target.Location.OriginalString);
                     });
                 });
             }
-        }
-
-        public async Task NavigateToPage(string targetRoute)
-        {
-            var currentRoute = Current.CurrentState.Location.OriginalString;
-
-            if (currentRoute != targetRoute)
+            else
             {
-                await Current.GoToAsync(targetRoute);
+                base.OnNavigating(args);
             }
         }
     }

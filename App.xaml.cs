@@ -14,11 +14,11 @@ public partial class App : Application
 
         if (mode == "server")
         {
-            startPage = new AppShell("server");
+            startPage = new AppShell("//server");
         }
         else if (mode == "client")
         {
-            startPage = new AppShell("client");
+            startPage = new AppShell("//client");
         }
         else
         {

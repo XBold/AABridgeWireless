@@ -19,21 +19,35 @@ public partial class ServerPage : ContentPage, IPageCleanup
     public ServerPage()
     {
         InitializeComponent();
+    }
+
+    private void InitializePage()
+    {
         stopPageRequest = false;
         Logger.Log("Server mode selected", 0);
         Preferences.Set("AppMode", "server");
         btStartStop.Text = startText;
+        int value = Preferences.Get("ServerPort", -1);
+        if (value == -1)
+        {
+            entPort.Text = "";
+        }
+        else
+        {
+            entPort.Text = value.ToString();
+        }
+    }
+
+    private void PageAppearing(object sender, EventArgs e)
+    {
+        InitializePage();
         _ = CheckWiFiSignal();
     }
 
     public async Task CleanupAsync()
     {
+        Logger.Log($"Closing {this.GetType().Name}", 0);
         await StopPage();
-
-        MainThread.BeginInvokeOnMainThread(() =>
-        {
-            Shell.Current.Navigation.PopAsync(false);
-        });
     }
 
     private async Task StopPage()
@@ -49,7 +63,6 @@ public partial class ServerPage : ContentPage, IPageCleanup
         Logger.Log("Server started", 0);
         ToogleUiElements(false);
         serverRunning = true;
-
         try
         {
             while (!token.IsCancellationRequested)
@@ -57,6 +70,7 @@ public partial class ServerPage : ContentPage, IPageCleanup
                 Logger.Log("Waiting connection...", 0);
 
                 var acceptTask = server.AcceptTcpClientAsync();
+                Preferences.Set("ServerPort", port);
                 var completedTask = await Task.WhenAny(acceptTask, Task.Delay(Timeout.Infinite, token));
 
                 if (completedTask == acceptTask)
@@ -122,28 +136,43 @@ public partial class ServerPage : ContentPage, IPageCleanup
 
     private async Task CheckWiFiSignal()
     {
-        
+
         while (!stopPageRequest)
         {
-            lblShowSignal.Text = "Signal strenght: " + WiFiSignal().ToString() + "%";
+            var (signalStrenght, ip) = WiFiSignal();
+            if (signalStrenght > 0)
+            {
+                lblShowSignal.Text = "Signal strenght: " + signalStrenght.ToString() + "%";
+                lblCurIp.Text = $"Ip address: {ip}";
+            }
+            else
+            {
+                lblShowSignal.Text = "WiFi not connected";
+                lblCurIp.Text = "WiFi not connected";
+            }
             await Task.Delay(100);
         }
-        lblShowSignal.Text = "Stop page requested!!";
     }
 
-    private int WiFiSignal()
+    private (int signal, string ipAddress) WiFiSignal()
     {
 #if ANDROID
         try
         {
+            
             var wifiManager = (WifiManager)Android.App.Application.Context.GetSystemService(Context.WifiService);
             var info = wifiManager.ConnectionInfo;
-            return WifiManager.CalculateSignalLevel(info.Rssi, 101);
+            string ip = "";
+            if (IPAddress.TryParse(info.IpAddress.ToString(), out IPAddress address))
+            {
+                ip = address.ToString();
+            }
+            return (WifiManager.CalculateSignalLevel(info.Rssi, 101),  ip);
         }
         catch (Exception ex)
         {
             Logger.Log($"Error while getting signal strength. Error: {ex.Message}", 2);
-            return 0;
+            return (0, "");
         }
 #else
         return 0;

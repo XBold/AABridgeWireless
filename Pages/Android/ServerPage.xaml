@@ -1,6 +1,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             x:Class="AABridgeWireless.ServerPage">
+             x:Class="AABridgeWireless.ServerPage"
+             Appearing="PageAppearing">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="5*"/>
@@ -17,6 +18,9 @@
             <!--SPACE-->
             <RowDefinition Height="1*"/>
             <RowDefinition Height="2*"/> <!--Label output-->
+            <!--SPACE-->
+            <RowDefinition Height="1*"/>
+            <RowDefinition Height="2*"/> <!-- Label current IP-->
             <RowDefinition Height="5*"/>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
@@ -28,6 +32,7 @@
         <Entry x:Name="entPort" Grid.Row="3" Grid.Column="1" VerticalOptions="Center" Keyboard="Numeric" MaxLength="5" TextChanged="RestoreBackgroundColor" Focused="RestoreBackgroundColor"/>
         <Button x:Name="btStartStop" Grid.Row="5" Grid.Column="1" Text="Start server" Clicked="StartStopServer"/>
         <Label x:Name="lblShowSignal" Grid.Row="7" Grid.Column="1" VerticalOptions="Center" HorizontalOptions="CenterAndExpand"/>
-        <Label x:Name="lblOutput" Grid.Row="9" Grid.Column="1" MaxLines="10" FontSize="50" Text="output"/>
+        <Label x:Name="lblOutput" Grid.Row="9" Grid.Column="1" MaxLines="10" FontSize="Large" Text="output"/>
+        <Label x:Name="lblCurIp" Grid.Row="11" Grid.Column="1" FontSize="Large" VerticalOptions="Center" HorizontalOptions="CenterAndExpand"/>
     </Grid>
 </ContentPage>
