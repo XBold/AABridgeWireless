@@ -12,10 +12,9 @@ public partial class ServerPage : ContentPage, IPageCleanup
 {
     
     private CancellationTokenSource _cancellationTokenSource;
-    private readonly string startText = "Start server";
-    private readonly string stopText = "Stop server";
     private bool serverRunning;
     private bool stopPageRequest;
+    private bool confirmAddIp;
 
     public ServerPage()
     {
@@ -27,8 +26,13 @@ public partial class ServerPage : ContentPage, IPageCleanup
         stopPageRequest = false;
         Logger.Log("Server mode selected", 0);
         Preferences.Set("AppMode", "server");
-        btStartStop.Text = startText;
-        lblOutput.Text = string.Empty;
+        btCnct.Text = Constants.connectText;
+        lblRxMsg.Text = string.Empty;
+        entIpDst.Text = Preferences.Get("ToClient.Ip", string.Empty);
+        if (string.IsNullOrEmpty(entIpDst.Text))
+        {
+            entIpDst.IsEnabled = false;
+        }
         int value = Preferences.Get("ClientPort", -1);
         if (value == -1)
         {
@@ -119,7 +123,7 @@ public partial class ServerPage : ContentPage, IPageCleanup
             buffer = new byte[1024];
             int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, token);
             string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-            lblOutput.Text += message + "\n";
+            lblRxMsg.Text += message + "\n";
             Logger.Log($"Message received: {message}", 0);
         }
         catch (OperationCanceledException)
@@ -198,7 +202,7 @@ public partial class ServerPage : ContentPage, IPageCleanup
     {
         if (sender is Button btConnection)
         {
-            if (btConnection.Text == startText)
+            if (btConnection.Text == Constants.connectText)
             {
                 if (!string.IsNullOrEmpty(entPort.Text))
                 {
@@ -253,11 +257,28 @@ public partial class ServerPage : ContentPage, IPageCleanup
     private void ToogleUiElements(bool enable)
     {
         entPort.IsEnabled = enable;
-        btStartStop.Text = (enable ? startText : stopText);
+        btCnct.Text = (enable ? Constants.connectText : Constants.disconnectText);
     }
 
     private void RestoreColor(object sender, EventArgs e)
     {
         Properties.RestoreColor(sender, e);
+    }
+
+    private void OptionalEntry(object sender, FocusEventArgs e)
+    {
+        if(sender is Entry entry)
+        {
+            if (string.IsNullOrEmpty(entry.Text) && !confirmAddIp)
+            {
+                confirmAddIp = true;
+                entry.Placeholder = "OPTIONAL - Click again";
+            }
+            else if (string.IsNullOrEmpty(entry.Text) && confirmAddIp)
+            {
+                entry.Placeholder = "Server IP address";
+                entry.IsEnabled = true;
+            }
+        }
     }
 }

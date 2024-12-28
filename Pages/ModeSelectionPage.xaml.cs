@@ -13,16 +13,16 @@ public partial class ModeSelectionPage : ContentPage
     {
         if (sender is Button button)
         {
-            string mode = button.Text;
+            string mode = "//" + button.Text.ToLower();
             Preferences.Set("AppMode", mode);
 
             if (Application.Current?.Windows.Count > 0)
             {
-                if (mode == "Server")
+                if (mode == "//server")
                 {
                     Application.Current.Windows[0].Page = new AppShell(mode);
                 }
-                else if (mode == "Client")
+                else if (mode == "//client")
                 {
                     Application.Current.Windows[0].Page = new AppShell(mode);
                 }

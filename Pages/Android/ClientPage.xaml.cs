@@ -5,16 +5,16 @@ using System.Text;
 using Tools;
 using Tools.Network;
 using Tools.ObjectHandlers;
+using Tools.ValidationsAndExeptions;
 
 namespace AABridgeWireless;
 
 public partial class ClientPage : ContentPage, IPageCleanup
 {
     private bool stopPageRequest;
-    private bool connectionRunning;
-    private readonly string connectText = "Connect to server";
-    private readonly string disconnectText = "Disconnect from server";
+    private bool connectionRunning; 
     private CancellationTokenSource _cancellationTokenSource;
+    TCP_Client client = new TCP_Client();
 
     public ClientPage()
     {
@@ -40,7 +40,7 @@ public partial class ClientPage : ContentPage, IPageCleanup
         stopPageRequest = false;
         Logger.Log("Client mode selected", 0);
         Preferences.Set("AppMode", "client");
-        btCnct.Text = connectText;
+        btCnct.Text = Constants.connectText;
         lblRxMsg.Text = string.Empty;
         entIpDst.Text = Preferences.Get("ServerIp", string.Empty);
         int port = Preferences.Get("ServerPort", -1);
@@ -118,17 +118,11 @@ public partial class ClientPage : ContentPage, IPageCleanup
 
     private async Task ConnectToServer(string ip, int port, CancellationToken token)
     {
-        TcpClient client = new TcpClient();
-        ToogleUiElements(false);
-        connectionRunning = true;
-        Logger.Log("Waiting connection...", 0);
-        Preferences.Set("ServerIp", ip);
-        Preferences.Set("ServerPort", port);
-        while (!client.Connected)
+        while (!token.IsCancellationRequested)
         {
             try
             {
-                await client.ConnectAsync(ip, port, token);
+                await client.ConnectAsync(ip, port);
             }
             catch (SocketException socketEx)
             {
@@ -142,47 +136,20 @@ public partial class ClientPage : ContentPage, IPageCleanup
                 Logger.Log("Request stop of waiting connection by token", 0);
                 break;
             }
-            catch (Exception ex)
+            catch (ParameterValidationException ex)
             {
-                Logger.Log($"Server error: {ex.Message}", 3);
-                break;
-            }
-        }
-
-        if (client.Connected)
-        {
-            try
-            {
-                while (!token.IsCancellationRequested)
+                Logger.Log("Failed to connect due to validation errors:", 2);
+                foreach (var error in ex.ValidationResult.Errors)
                 {
-                    Logger.Log("Client is connected to server", 0);
-                    _ = HandleConnectionAsync(client, token);
+                    Logger.Log($"{error.Key}: {error.Value}", 2);
                 }
             }
-            catch (OperationCanceledException)
-            {
-                Logger.Log("Request stop of connection by token", 0);
-            }
             catch (Exception ex)
             {
-                Logger.Log($"Server error: {ex.Message}", 3);
-            }
-            finally
-            {
-
-                client.Close();
-                ToogleUiElements(true);
-                connectionRunning = false;
-                Logger.Log("Connection succesfully stopped", 0);
+                Logger.Log($"Unexpected error: {ex.Message}", 2);
             }
         }
-        else
-        {
-            client.Close();
-            ToogleUiElements(true);
-            connectionRunning = false;
-            Logger.Log("Connection succesfully stopped", 0);
-        }
+        
     }
 
     private async Task HandleConnectionAsync(TcpClient client, CancellationToken token)
@@ -222,24 +189,14 @@ public partial class ClientPage : ContentPage, IPageCleanup
         entIpDst.IsEnabled = enable;
         entPort.IsEnabled = enable;
         entTxMsg.IsEnabled = !enable;
-        btCnct.Text = (enable ? connectText : disconnectText);
-    }
-
-    private void ManageWiFi()
-    {
-        // WiFi management logic
-    }
-
-    private void HandleUSBCommunication()
-    {
-        // USB communication logic
+        btCnct.Text = (enable ? Constants.connectText : Constants.disconnectText);
     }
 
     private void ConnectOrDisconnect(object sender, EventArgs e)
     {
         if (sender is Button btConnection)
         {
-            if (btConnection.Text == connectText)
+            if (btConnection.Text == Constants.connectText)
             {
                 if (!string.IsNullOrEmpty(entIpDst.Text) && !string.IsNullOrEmpty(entPort.Text))
                 {

@@ -3,7 +3,6 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="AABridgeWireless.ClientPage"
              Appearing="PageAppearing">
-
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="3*"/>
@@ -11,6 +10,9 @@
 
             <RowDefinition/>
             <RowDefinition Height="3*"/>
+
+            <RowDefinition/>
+            <RowDefinition Height="2*"/>
 
             <RowDefinition/>
             <RowDefinition Height="2*"/>
@@ -42,16 +44,18 @@
                 <ColumnDefinition/>
             </Grid.ColumnDefinitions>
             <Label Grid.ColumnSpan="2" Text="Connection config"/>
-            <Entry x:Name="entIpDst" Grid.Row="1" Grid.Column="0" VerticalOptions="Center" ToolTipProperties.Text="Server IP address" Placeholder="Server IP address"/>
-            <Entry x:Name="entPort"  Grid.Row="1" Grid.Column="1" VerticalOptions="Center" ToolTipProperties.Text="Server port" Placeholder="Server port" Keyboard="Numeric" MaxLength="5" TextChanged="RestoreColor" Focused="RestoreColor"/>
+            <Entry x:Name="entIpDst" Grid.Row="1" Grid.Column="0" VerticalOptions="Center" Placeholder="Server IP address"/>
+            <Entry x:Name="entPort"  Grid.Row="1" Grid.Column="1" VerticalOptions="Center" Placeholder="Server port" Keyboard="Numeric" MaxLength="5" TextChanged="RestoreColor" Focused="RestoreColor"/>
         </Grid>
 
         <Button x:Name="btCnct"     Grid.Row="5" Grid.Column="1" Clicked="ConnectOrDisconnect"/>
 
         <Entry x:Name="entTxMsg"    Grid.Row="7" Grid.Column="1" VerticalOptions="Center" ToolTipProperties.Text="Message to server"/>
 
-        <Label x:Name="lblRxMsg"    Grid.Row="9" Grid.Column="1" FontSize="Large" ToolTipProperties.Text="Rx messages" />
+        <Button x:Name="btTxMsg"    Grid.Row="9" Grid.Column="1" Text="Send message"/>
 
-        <Label x:Name="lblInfo"     Grid.Row="11" Grid.Column="1" FontSize="Large" ToolTipProperties.Text="Connection info" MaxLines="5"/>
+        <Label x:Name="lblRxMsg"    Grid.Row="11" Grid.Column="1" FontSize="Large" ToolTipProperties.Text="Rx messages"/>
+
+        <Label x:Name="lblInfo"     Grid.Row="13" Grid.Column="1" FontSize="Large" ToolTipProperties.Text="Connection info" MaxLines="5"/>
     </Grid>
 </ContentPage>
