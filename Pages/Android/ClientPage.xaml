@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             xmlns:tools="clr-namespace:Tools.ObjectHandlers;assembly=Tools"
              x:Class="AABridgeWireless.ClientPage"
              Appearing="PageAppearing">
 
@@ -9,13 +8,13 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="3*"/>
             <RowDefinition/>
-            
+
             <RowDefinition/>
             <RowDefinition Height="3*"/>
 
             <RowDefinition/>
             <RowDefinition Height="2*"/>
-            
+
             <RowDefinition/>
             <RowDefinition Height="2*"/>
 
@@ -44,7 +43,7 @@
             </Grid.ColumnDefinitions>
             <Label Grid.ColumnSpan="2" Text="Connection config"/>
             <Entry x:Name="entIpDst" Grid.Row="1" Grid.Column="0" VerticalOptions="Center" ToolTipProperties.Text="Server IP address" Placeholder="Server IP address"/>
-            <Entry x:Name="entPort"  Grid.Row="1" Grid.Column="1" VerticalOptions="Center" ToolTipProperties.Text="Server port" Placeholder="Server port" Keyboard="Numeric" MaxLength="5" TextChanged="tools:Properties.RestoreColor" Focused="tools:Properties.RestoreColor"/>
+            <Entry x:Name="entPort"  Grid.Row="1" Grid.Column="1" VerticalOptions="Center" ToolTipProperties.Text="Server port" Placeholder="Server port" Keyboard="Numeric" MaxLength="5" TextChanged="RestoreColor" Focused="RestoreColor"/>
         </Grid>
 
         <Button x:Name="btCnct"     Grid.Row="5" Grid.Column="1" Clicked="ConnectOrDisconnect"/>

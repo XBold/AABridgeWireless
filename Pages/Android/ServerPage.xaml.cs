@@ -255,4 +255,9 @@ public partial class ServerPage : ContentPage, IPageCleanup
         entPort.IsEnabled = enable;
         btStartStop.Text = (enable ? startText : stopText);
     }
+
+    private void RestoreColor(object sender, EventArgs e)
+    {
+        Properties.RestoreColor(sender, e);
+    }
 }

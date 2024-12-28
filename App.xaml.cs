@@ -15,11 +15,11 @@ public partial class App : Application
 
         try
         {
-           mode = Preferences.Get("AppMode", "None");
+            mode = Preferences.Get("AppMode", "None");
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
-            Logger.Log("Error when loading startup page", 2);
+            Logger.Log($"Error when loading startup page. Message: {ex.Message}", 2);
             mode = string.Empty;
         }
         Page startPage;

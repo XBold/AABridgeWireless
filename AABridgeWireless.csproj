@@ -102,7 +102,7 @@
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Maui.Controls" Version="9.0.21" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.0" />
-		<PackageReference Include="ToolsLib" Version="1.1.5" />
+		<PackageReference Include="ToolsLib" Version="1.1.7" />
 	</ItemGroup>
 
 	<ItemGroup>

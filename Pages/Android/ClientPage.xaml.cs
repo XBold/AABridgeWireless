@@ -237,7 +237,7 @@ public partial class ClientPage : ContentPage, IPageCleanup
 
     private void ConnectOrDisconnect(object sender, EventArgs e)
     {
-        if(sender is Button btConnection)
+        if (sender is Button btConnection)
         {
             if (btConnection.Text == connectText)
             {
@@ -291,5 +291,10 @@ public partial class ClientPage : ContentPage, IPageCleanup
                 break;
             }
         }
+    }
+
+    private void RestoreColor(object sender, EventArgs e)
+    {
+        Properties.RestoreColor(sender, e);
     }
 }
