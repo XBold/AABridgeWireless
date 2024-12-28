@@ -1,5 +1,6 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:tools="clr-namespace:Tools.ObjectHandlers;assembly=Tools"
              x:Class="AABridgeWireless.ServerPage"
              Appearing="PageAppearing">
     <Grid>
@@ -29,8 +30,8 @@
             <ColumnDefinition/>
         </Grid.ColumnDefinitions>
         <Label                          Grid.Row="1" Grid.Column="1" FontSize="Header" Text="Server mode"  HorizontalTextAlignment="Center" VerticalTextAlignment="Center"/>
-        
-        <Entry x:Name="entPort"         Grid.Row="3" Grid.Column="1" VerticalOptions="Center" Keyboard="Numeric" MaxLength="5" TextChanged="RestoreBackgroundColor" Focused="RestoreBackgroundColor"/>
+
+        <Entry x:Name="entPort"         Grid.Row="3" Grid.Column="1" VerticalOptions="Center" Keyboard="Numeric" MaxLength="5" TextChanged="tools:Properties.RestoreColor" Focused="tools:Properties.RestoreColor"/>
         
         <Button x:Name="btStartStop"    Grid.Row="5" Grid.Column="1" Clicked="StartStopServer"/>
         

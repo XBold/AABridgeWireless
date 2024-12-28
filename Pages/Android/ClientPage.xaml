@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             x:Class="AABridgeWireless.ClientPage">
+             xmlns:tools="clr-namespace:Tools.ObjectHandlers;assembly=Tools"
+             x:Class="AABridgeWireless.ClientPage"
+             Appearing="PageAppearing">
 
     <Grid>
         <Grid.RowDefinitions>
@@ -29,7 +31,7 @@
             <ColumnDefinition Width="5*"/>
             <ColumnDefinition/>
         </Grid.ColumnDefinitions>
-        <Label                      Grid.Row="1" Grid.Column="1" FontSize="Header" Text="Server mode"  HorizontalTextAlignment="Center" VerticalTextAlignment="Center"/>
+        <Label                      Grid.Row="1" Grid.Column="1" FontSize="Header" Text="Client mode"  HorizontalTextAlignment="Center" VerticalTextAlignment="Center"/>
 
         <Grid                       Grid.Row="3" Grid.Column="1">
             <Grid.RowDefinitions>
@@ -41,8 +43,8 @@
                 <ColumnDefinition/>
             </Grid.ColumnDefinitions>
             <Label Grid.ColumnSpan="2" Text="Connection config"/>
-            <Entry x:Name="entIpDst" Grid.Row="1" Grid.Column="1" VerticalOptions="Center" ToolTipProperties.Text="Server IP address"/>
-            <Entry x:Name="entPort"  Grid.Row="1" Grid.Column="2" VerticalOptions="Center" ToolTipProperties.Text="Server port"/>
+            <Entry x:Name="entIpDst" Grid.Row="1" Grid.Column="0" VerticalOptions="Center" ToolTipProperties.Text="Server IP address" Placeholder="Server IP address"/>
+            <Entry x:Name="entPort"  Grid.Row="1" Grid.Column="1" VerticalOptions="Center" ToolTipProperties.Text="Server port" Placeholder="Server port" Keyboard="Numeric" MaxLength="5" TextChanged="tools:Properties.RestoreColor" Focused="tools:Properties.RestoreColor"/>
         </Grid>
 
         <Button x:Name="btCnct"     Grid.Row="5" Grid.Column="1" Clicked="ConnectOrDisconnect"/>

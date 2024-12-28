@@ -3,7 +3,8 @@ using Android.Net.Wifi;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using Tools.Classes;
+using Tools;
+using Tools.ObjectHandlers;
 
 namespace AABridgeWireless;
 
@@ -195,32 +196,34 @@ public partial class ServerPage : ContentPage, IPageCleanup
 
     private void StartStopServer(object sender, EventArgs e)
     {
-        if (btStartStop.Text == startText)
+        if (sender is Button btConnection)
         {
-            if (!string.IsNullOrEmpty(entPort.Text))
+            if (btConnection.Text == startText)
             {
-                if (int.TryParse(entPort.Text, out var port))
+                if (!string.IsNullOrEmpty(entPort.Text))
                 {
-                    if (port > 1020 && port <= 65535)
+                    if (int.TryParse(entPort.Text, out var port))
                     {
-                        btStartStop.Text = stopText;
-                        _cancellationTokenSource =  new CancellationTokenSource();
-                        _ = StartServer(port, _cancellationTokenSource.Token);
+                        if (port > 1020 && port <= 65535)
+                        {
+                            _cancellationTokenSource = new CancellationTokenSource();
+                            _ = StartServer(port, _cancellationTokenSource.Token);
+                        }
+                        else
+                        {
+                            entPort.BackgroundColor = Colors.Red;
+                        }
                     }
                     else
                     {
-                        entPort.BackgroundColor = Colors.Red;
+                        Logger.Log("Not possible to parse the input in INT format", 2);
                     }
                 }
-                else
-                {
-                    Logger.Log("Not possible to parse the input in INT format", 2);
-                }
             }
-        }
-        else
-        {
-            _ = StopServer();
+            else
+            {
+                _ = StopServer();
+            }
         }
     }
 
@@ -251,13 +254,5 @@ public partial class ServerPage : ContentPage, IPageCleanup
     {
         entPort.IsEnabled = enable;
         btStartStop.Text = (enable ? startText : stopText);
-    }
-
-    private void RestoreBackgroundColor(object sender, EventArgs e)
-    {
-        if (sender is Entry entry)
-        {
-            entry.BackgroundColor = Colors.Transparent;
-        }
     }
 }

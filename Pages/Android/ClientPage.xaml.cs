@@ -1,15 +1,14 @@
 using Android.Content;
 using Android.Net.Wifi;
-using System.Net;
 using System.Net.Sockets;
 using System.Text;
-
-using System.Threading;
-using Tools.Classes;
+using Tools;
+using Tools.Network;
+using Tools.ObjectHandlers;
 
 namespace AABridgeWireless;
 
-public partial class ClientPage : ContentPage
+public partial class ClientPage : ContentPage, IPageCleanup
 {
     private bool stopPageRequest;
     private bool connectionRunning;
@@ -43,16 +42,8 @@ public partial class ClientPage : ContentPage
         Preferences.Set("AppMode", "client");
         btCnct.Text = connectText;
         lblRxMsg.Text = string.Empty;
-        int ip = Preferences.Get("ServerIp", -1);
+        entIpDst.Text = Preferences.Get("ServerIp", string.Empty);
         int port = Preferences.Get("ServerPort", -1);
-        if (ip == -1)
-        {
-            entIpDst.Text = "";
-        }
-        else
-        {
-            entIpDst.Text = ip.ToString();
-        }
         if (port == -1)
         {
             entPort.Text = "";
@@ -130,75 +121,99 @@ public partial class ClientPage : ContentPage
         TcpClient client = new TcpClient();
         ToogleUiElements(false);
         connectionRunning = true;
-        try
+        Logger.Log("Waiting connection...", 0);
+        Preferences.Set("ServerIp", ip);
+        Preferences.Set("ServerPort", port);
+        while (!client.Connected)
         {
-            while (!token.IsCancellationRequested)
+            try
             {
-                Logger.Log("Waiting connection...", 0);
-
-                Preferences.Set("ServerIp", ip);
-                Preferences.Set("ServerPort", port);
-                var completedTask = await Task.WhenAny(client.ConnectAsync(ip, port), Task.Delay(Timeout.Infinite, token));
-                Logger.Log("Server connected", 0);
-
-                if (completedTask.IsCompleted)
+                await client.ConnectAsync(ip, port, token);
+            }
+            catch (SocketException socketEx)
+            {
+                if (socketEx.Message != "Connection refused")
                 {
-                    Logger.Log("Connected!", 0);
-
-                    _ = HandleConnectionAsync(client, token);
-                }
-                else if (completedTask.IsCanceled)
-                {
-                    Logger.Log("Token for closing server received", 0);
-                    ToogleUiElements(true);
                     break;
                 }
             }
+            catch (OperationCanceledException)
+            {
+                Logger.Log("Request stop of waiting connection by token", 0);
+                break;
+            }
+            catch (Exception ex)
+            {
+                Logger.Log($"Server error: {ex.Message}", 3);
+                break;
+            }
         }
-        catch (OperationCanceledException)
+
+        if (client.Connected)
         {
-            Logger.Log("Requested stop of server by token", 0);
+            try
+            {
+                while (!token.IsCancellationRequested)
+                {
+                    Logger.Log("Client is connected to server", 0);
+                    _ = HandleConnectionAsync(client, token);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                Logger.Log("Request stop of connection by token", 0);
+            }
+            catch (Exception ex)
+            {
+                Logger.Log($"Server error: {ex.Message}", 3);
+            }
+            finally
+            {
+
+                client.Close();
+                ToogleUiElements(true);
+                connectionRunning = false;
+                Logger.Log("Connection succesfully stopped", 0);
+            }
         }
-        catch (Exception ex)
-        {
-            Logger.Log($"Server error: {ex.Message}", 2);
-        }
-        finally
+        else
         {
             client.Close();
             ToogleUiElements(true);
             connectionRunning = false;
-            Logger.Log("Server succesfully stopped", 0);
+            Logger.Log("Connection succesfully stopped", 0);
         }
     }
 
     private async Task HandleConnectionAsync(TcpClient client, CancellationToken token)
     {
-        try
+        if (client.Connected)
         {
-            using var stream = client.GetStream();
-            byte[] buffer = Encoding.UTF8.GetBytes("Client connected to server");
-            await stream.WriteAsync(buffer, 0, buffer.Length, token);
-            Logger.Log("Welcome message sent to client", 0);
+            try
+            {
+                using var stream = client.GetStream();
+                byte[] buffer = Encoding.UTF8.GetBytes("Client connected to server");
+                await stream.WriteAsync(buffer, 0, buffer.Length, token);
+                Logger.Log("Welcome message sent to client", 0);
 
-            buffer = new byte[1024];
-            int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, token);
-            string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-            lblRxMsg.Text += message;
-            Logger.Log($"Message received: {message}", 0);
-        }
-        catch (OperationCanceledException)
-        {
-            Logger.Log("Server stop requested", 0);
-        }
-        catch (Exception ex)
-        {
-            Logger.Log($"Error receiving message: {ex.Message}", 2);
-        }
-        finally
-        {
-            client.Close();
-            Logger.Log("Server closed", 0);
+                buffer = new byte[1024];
+                int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, token);
+                string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+                lblRxMsg.Text += message;
+                Logger.Log($"Message received: {message}", 0);
+            }
+            catch (OperationCanceledException)
+            {
+                Logger.Log("Server stop requested", 0);
+            }
+            catch (Exception ex)
+            {
+                Logger.Log($"Error receiving message: {ex.Message}", 2);
+            }
+            finally
+            {
+                Logger.Log("Server closed", 0);
+            }
         }
     }
 
@@ -230,10 +245,9 @@ public partial class ClientPage : ContentPage
                 {
                     if (int.TryParse(entPort.Text, out var port))
                     {
-                        if (port > 1020 && port <= 65535)
+                        if (NetCheck.PortInRange(port))
                         {
                             string ip = entIpDst.Text;
-                            btConnection.Text = disconnectText;
                             _cancellationTokenSource = new CancellationTokenSource();
                             _ = ConnectToServer(ip, port, _cancellationTokenSource.Token);
                         }
@@ -257,6 +271,7 @@ public partial class ClientPage : ContentPage
 
     private async Task StopConnection()
     {
+
         DateTime timeRequestStop = DateTime.Now;
         TimeSpan breakDuration = TimeSpan.FromSeconds(2);
         if (_cancellationTokenSource != null)
