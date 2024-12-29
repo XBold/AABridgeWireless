@@ -48,11 +48,11 @@
             <Entry x:Name="entPort"  Grid.Row="1" Grid.Column="1" VerticalOptions="Center" Placeholder="Server port" Keyboard="Numeric" MaxLength="5" TextChanged="RestoreColor" Focused="RestoreColor"/>
         </Grid>
 
-        <Button x:Name="btCnct"     Grid.Row="5" Grid.Column="1" Clicked="ConnectOrDisconnect"/>
+        <Button x:Name="btCnct"     Grid.Row="5" Grid.Column="1" Clicked="BtConnectDisconnect"/>
 
         <Entry x:Name="entTxMsg"    Grid.Row="7" Grid.Column="1" VerticalOptions="Center" ToolTipProperties.Text="Message to server"/>
 
-        <Button x:Name="btTxMsg"    Grid.Row="9" Grid.Column="1" Text="Send message"/>
+        <Button x:Name="btTxMsg"    Grid.Row="9" Grid.Column="1" Text="Send message" Clicked="BtTxMessage"/>
 
         <Label x:Name="lblRxMsg"    Grid.Row="11" Grid.Column="1" FontSize="Large" ToolTipProperties.Text="Rx messages"/>
 
