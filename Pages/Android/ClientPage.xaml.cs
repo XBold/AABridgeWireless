@@ -12,8 +12,7 @@ namespace AABridgeWireless;
 public partial class ClientPage : ContentPage, IPageCleanup
 {
     private bool stopPageRequest;
-    private bool connectionRunning; 
-    private CancellationTokenSource _cancellationTokenSource;
+    private bool connectionRunning;
     TCP_Client client = new TCP_Client();
 
     public ClientPage()
@@ -53,16 +52,61 @@ public partial class ClientPage : ContentPage, IPageCleanup
         _ = UpdateWifiData();
     }
 
-    private async Task StopPage()
-    {
-        stopPageRequest = true;
-        await StopConnection();
-    }
-
     public async Task CleanupAsync()
     {
         Logger.Log($"Closing {this.GetType().Name}", 0);
         await StopPage();
+    }
+
+    private async Task StopPage()
+    {
+        stopPageRequest = true;
+        client.Disconnect();
+        await Task.Delay(1000);
+    }
+
+    private async Task ConnectToServer(string ip, int port)
+    {
+        try
+        {
+            await client.ConnectAsync(ip, port);
+        }
+        catch (SocketException socketEx)
+        {
+            if (socketEx.Message != "Connection refused")
+            {
+                Logger.Log("Connection refused", 0);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            Logger.Log("Request stop of waiting connection by token - NOT USED, HANDLED INTERNALLY IN TOOL LIB", 3);
+        }
+        catch (ParameterValidationException ex)
+        {
+            Logger.Log("Failed to connect due to validation errors:", 1);
+            foreach (var error in ex.ValidationResult.Errors)
+            {
+                Logger.Log($"{error.Key}: {error.Value}", 1);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Log($"Unexpected error: {ex.Message}", 2);
+        }
+    }
+
+    private async Task OnMessageReceived(byte[] data)
+    {
+        string message = Encoding.UTF8.GetString(data);
+        lblRxMsg.Text = message;
+    }
+
+    private async Task ConnectionStateChanged(bool isConnected)
+    {
+        entTxMsg.IsEnabled = isConnected;
+        btTxMsg.IsEnabled = isConnected;
+        ToogleUiElements(!isConnected);
     }
 
     private async Task UpdateWifiData()
@@ -121,37 +165,6 @@ public partial class ClientPage : ContentPage, IPageCleanup
 #endif
     }
 
-    private async Task ConnectToServer(string ip, int port, CancellationToken token)
-    {
-        try
-        {
-            await client.ConnectAsync(ip, port);
-        }
-        catch (SocketException socketEx)
-        {
-            if (socketEx.Message != "Connection refused")
-            {
-                Logger.Log("Connection refused", 0);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            Logger.Log("Request stop of waiting connection by token - NOT USED, HANDLED INTERNALLY IN TOOL LIB", 3);
-        }
-        catch (ParameterValidationException ex)
-        {
-            Logger.Log("Failed to connect due to validation errors:", 1);
-            foreach (var error in ex.ValidationResult.Errors)
-            {
-                Logger.Log($"{error.Key}: {error.Value}", 1);
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.Log($"Unexpected error: {ex.Message}", 2);
-        }
-    }
-
     private void ToogleUiElements(bool enable)
     {
         entIpDst.IsEnabled = enable;
@@ -159,46 +172,9 @@ public partial class ClientPage : ContentPage, IPageCleanup
         btCnct.Text = (enable ? Constants.connectText : Constants.disconnectText);
     }
 
-    private async Task StopConnection()
-    {
-
-        DateTime timeRequestStop = DateTime.Now;
-        TimeSpan breakDuration = TimeSpan.FromSeconds(2);
-        if (_cancellationTokenSource != null)
-        {
-            _cancellationTokenSource.Cancel();
-            _cancellationTokenSource.Dispose();
-            _cancellationTokenSource = null;
-            Logger.Log("Request stop server", 0);
-        }
-
-        while (connectionRunning)
-        {
-            await Task.Delay(50);
-            if (DateTime.Now - timeRequestStop > breakDuration)
-            {
-                Logger.Log("Forced stop when server is still running", 2);
-                break;
-            }
-        }
-    }
-
     private void RestoreColor(object sender, EventArgs e)
     {
         Properties.RestoreColor(sender, e);
-    }
-
-    private async Task OnMessageReceived(byte[] data)
-    {
-        string message = Encoding.UTF8.GetString(data);
-        lblRxMsg.Text = message;
-    }
-
-    private async Task ConnectionStateChanged(bool isConnected)
-    {
-        entTxMsg.IsEnabled = isConnected;
-        btTxMsg.IsEnabled = isConnected;
-        ToogleUiElements(!isConnected);
     }
 
     private void BtConnectDisconnect(object sender, EventArgs e)
@@ -214,8 +190,7 @@ public partial class ClientPage : ContentPage, IPageCleanup
                         if (NetCheck.PortInRange(port))
                         {
                             ToogleUiElements(false);
-                            _cancellationTokenSource = new CancellationTokenSource();
-                            _ = ConnectToServer(entIpDst.Text, port, _cancellationTokenSource.Token);
+                            _ = ConnectToServer(entIpDst.Text, port);
                         }
                         else
                         {
@@ -230,7 +205,7 @@ public partial class ClientPage : ContentPage, IPageCleanup
             }
             else
             {
-                _ = StopConnection();
+                client.Disconnect();
             }
         }
     }

@@ -1,20 +1,21 @@
 using Android.Content;
 using Android.Net.Wifi;
-using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using Tools;
+using Tools.Network;
 using Tools.ObjectHandlers;
+using Tools.ValidationsAndExeptions;
 
 namespace AABridgeWireless;
 
 public partial class ServerPage : ContentPage, IPageCleanup
 {
-    
-    private CancellationTokenSource _cancellationTokenSource;
-    private bool serverRunning;
+
     private bool stopPageRequest;
     private bool confirmAddIp;
+    TCP_Server server;
+    private List<TcpClient> tcpClientsConnected = new();
 
     public ServerPage()
     {
@@ -59,85 +60,65 @@ public partial class ServerPage : ContentPage, IPageCleanup
     private async Task StopPage()
     {
         stopPageRequest = true;
-        await StopServer();
+        server.StopServer();
+        await Task.Delay(1000);
     }
 
-    private async Task StartServer(int port, CancellationToken token)
+    private async Task StartServer(string ip, int port)
     {
-        TcpListener server = new TcpListener(IPAddress.Any, port);
-        server.Start();
-        Logger.Log("Server started", 0);
-        ToogleUiElements(false);
-        serverRunning = true;
+        ValidationResult result;
+        if (string.IsNullOrEmpty(ip))
+        {
+            server = TCP_Server.Create(out result, port);
+        }
+        else
+        {
+            server = TCP_Server.Create(ip, out result, port);
+        }
+        if (server == null)
+        {
+            foreach (var error in result.Errors)
+            {
+                if (error.Key == NetworkConstants.IPName)
+                {
+                    entIpDst.BackgroundColor = Colors.Red;
+                }
+                else if (error.Key == NetworkConstants.PortName)
+                {
+                    entPort.BackgroundColor = Colors.Red;
+                }
+            }
+            return;
+        }
+
+        AddEvents(true);
+
         try
         {
-            while (!token.IsCancellationRequested)
+            await server.StartServerAsync();
+        }
+        catch (SocketException socketEx)
+        {
+            if (socketEx.Message != "Connection refused")
             {
-                Logger.Log("Waiting connection...", 0);
-
-                var acceptTask = server.AcceptTcpClientAsync();
-                Preferences.Set("ServerPort", port);
-                var completedTask = await Task.WhenAny(acceptTask, Task.Delay(Timeout.Infinite, token));
-
-                if (completedTask == acceptTask)
-                {
-                    var client = acceptTask.Result;
-                    Logger.Log("Connection accepted", 0);
-
-                    _ = HandleClientAsync(client, token);
-                }
-                else
-                {
-                    Logger.Log("Token for closing server received", 0);
-                    ToogleUiElements(true);
-                    break;
-                }
+                Logger.Log("Connection refused", 0);
             }
         }
         catch (OperationCanceledException)
         {
-            Logger.Log("Requested stop of server by token", 0);
+            Logger.Log("Request stop of waiting connection by token - NOT USED, HANDLED INTERNALLY IN TOOL LIB", 3);
+        }
+        catch (ParameterValidationException ex)
+        {
+            Logger.Log("Failed to connect due to validation errors:", 1);
+            foreach (var error in ex.ValidationResult.Errors)
+            {
+                Logger.Log($"{error.Key}: {error.Value}", 1);
+            }
         }
         catch (Exception ex)
         {
-            Logger.Log($"Server error: {ex.Message}", 2);
-        }
-        finally
-        {
-            server.Stop();
-            ToogleUiElements(true);
-            serverRunning = false;
-            Logger.Log("Server succesfully stopped", 0);
-        }
-    }
-
-    private async Task HandleClientAsync(TcpClient client, CancellationToken token)
-    {
-        try
-        {
-            using var stream = client.GetStream();
-            byte[] buffer = Encoding.UTF8.GetBytes("Client connected");
-            await stream.WriteAsync(buffer, 0, buffer.Length, token);
-            Logger.Log("Welcome message sent to client", 0);
-
-            buffer = new byte[1024];
-            int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, token);
-            string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-            lblRxMsg.Text += message + "\n";
-            Logger.Log($"Message received: {message}", 0);
-        }
-        catch (OperationCanceledException)
-        {
-            Logger.Log("Server stop requested", 0);
-        }
-        catch (Exception ex)
-        {
-            Logger.Log($"Error receiving message: {ex.Message}", 2);
-        }
-        finally
-        {
-            client.Close();
-            Logger.Log("Server closed", 0);
+            Logger.Log($"Unexpected error: {ex.Message}", 2);
         }
     }
 
@@ -161,12 +142,33 @@ public partial class ServerPage : ContentPage, IPageCleanup
         }
     }
 
+    private async Task OnMessageReceived(TcpClient client, byte[] data)
+    {
+        string message = Encoding.UTF8.GetString(data);
+        lblRxMsg.Text = message;
+    }
+
+    private async Task OnClientConnected(TcpClient client)
+    {
+        tcpClientsConnected.Add(client);
+        ToggleUiServerMessage(true);
+    }
+
+    private async Task OnClientDisconnected(TcpClient client)
+    {
+        tcpClientsConnected.Remove(client);
+        if (tcpClientsConnected.Count == 0)
+        {
+            ToggleUiServerMessage(false);
+        }
+    }
+
     private (int signal, string ipAddress) WiFiData()
     {
 #if ANDROID
         try
         {
-            
+
             var wifiManager = (WifiManager)Android.App.Application.Context.GetSystemService(Context.WifiService);
             var info = wifiManager.ConnectionInfo;
             int ipAddressRaw = info.IpAddress;
@@ -185,8 +187,8 @@ public partial class ServerPage : ContentPage, IPageCleanup
                 Logger.Log("Error while formatting the IP address", 2);
                 ip = string.Empty;
             }
-            
-            return (WifiManager.CalculateSignalLevel(info.Rssi, 101),  ip);
+
+            return (WifiManager.CalculateSignalLevel(info.Rssi, 101), ip);
         }
         catch (Exception ex)
         {
@@ -198,7 +200,58 @@ public partial class ServerPage : ContentPage, IPageCleanup
 #endif
     }
 
-    private void StartStopServer(object sender, EventArgs e)
+    private void AddEvents(bool activate)
+    {
+        if (activate)
+        {
+            server.OnMessageReceived += OnMessageReceived;
+            server.OnClientConnected += OnClientConnected;
+            server.OnClientDisconnected += OnClientDisconnected;
+        }
+        else
+        {
+            server.OnMessageReceived -= OnMessageReceived;
+            server.OnClientConnected -= OnClientConnected;
+            server.OnClientDisconnected -= OnClientDisconnected;
+        }
+    }
+
+    private void ToggleUiServerConfig(bool enable)
+    {
+        entPort.IsEnabled = enable;
+        entIpDst.IsEnabled = enable;
+        btCnct.Text = (enable ? Constants.connectText : Constants.disconnectText);
+    }
+
+    private void ToggleUiServerMessage(bool enable)
+    {
+        btTxMsg.IsEnabled = enable;
+    }
+
+    private void RestoreColor(object sender, EventArgs e)
+    {
+        Properties.RestoreColor(sender, e);
+    }
+
+    private void OptionalEntry(object sender, FocusEventArgs e)
+    {
+        if (sender is Entry entry)
+        {
+            if (string.IsNullOrEmpty(entry.Text) && !confirmAddIp)
+            {
+                confirmAddIp = true;
+                entry.Placeholder = "OPTIONAL - Click again";
+            }
+            else if (string.IsNullOrEmpty(entry.Text) && confirmAddIp)
+            {
+                entry.Placeholder = "Server IP address";
+                entry.IsEnabled = true;
+            }
+            RestoreColor(sender, e);
+        }
+    }
+
+    private void BtStartStopServer(object sender, EventArgs e)
     {
         if (sender is Button btConnection)
         {
@@ -208,10 +261,10 @@ public partial class ServerPage : ContentPage, IPageCleanup
                 {
                     if (int.TryParse(entPort.Text, out var port))
                     {
-                        if (port > 1020 && port <= 65535)
+                        if (NetCheck.PortInRange(port))
                         {
-                            _cancellationTokenSource = new CancellationTokenSource();
-                            _ = StartServer(port, _cancellationTokenSource.Token);
+                            ToggleUiServerConfig(false);
+                            _ = StartServer(entIpDst.Text, port);
                         }
                         else
                         {
@@ -226,59 +279,19 @@ public partial class ServerPage : ContentPage, IPageCleanup
             }
             else
             {
-                _ = StopServer();
+                AddEvents(false);
+                server.StopServer();
             }
         }
     }
 
-    private async Task StopServer()
+    private async void BtTxMessage(object sender, EventArgs e)
     {
-        DateTime timeRequestStop = DateTime.Now;
-        TimeSpan breakDuration = TimeSpan.FromSeconds(2);
-        if (_cancellationTokenSource != null)
+        btTxMsg.IsEnabled = false;
+        if (!string.IsNullOrEmpty(entTxMsg.Text))
         {
-            _cancellationTokenSource.Cancel();
-            _cancellationTokenSource.Dispose();
-            _cancellationTokenSource = null;
-            Logger.Log("Request stop server", 0);
+            await server.BroadcastMessageAsync(entTxMsg.Text);
         }
-
-        while (serverRunning)
-        {
-            await Task.Delay(50);
-            if (DateTime.Now - timeRequestStop > breakDuration)
-            {
-                Logger.Log("Forced stop when server is still running", 2);
-                break;
-            }
-        }
-    }
-
-    private void ToogleUiElements(bool enable)
-    {
-        entPort.IsEnabled = enable;
-        btCnct.Text = (enable ? Constants.connectText : Constants.disconnectText);
-    }
-
-    private void RestoreColor(object sender, EventArgs e)
-    {
-        Properties.RestoreColor(sender, e);
-    }
-
-    private void OptionalEntry(object sender, FocusEventArgs e)
-    {
-        if(sender is Entry entry)
-        {
-            if (string.IsNullOrEmpty(entry.Text) && !confirmAddIp)
-            {
-                confirmAddIp = true;
-                entry.Placeholder = "OPTIONAL - Click again";
-            }
-            else if (string.IsNullOrEmpty(entry.Text) && confirmAddIp)
-            {
-                entry.Placeholder = "Server IP address";
-                entry.IsEnabled = true;
-            }
-        }
+        btCnct.IsEnabled = true;
     }
 }
